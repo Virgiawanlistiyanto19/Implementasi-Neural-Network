@@ -10,7 +10,7 @@ from threading import Thread
 from tensorflow.keras.models import load_model
 
 # ini model yang sudah dilatih
-model = load_model("gesture_nn_model.h5")
+model = load_model("Gesture_nn_model (1).h5")
 labels = ["open", "mencengkram", "genggam", "geser_kanan", "geser_kiri", "lepas"]
 
 window = tk.Tk()
