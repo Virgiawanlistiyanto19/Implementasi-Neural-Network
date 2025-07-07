@@ -1,4 +1,4 @@
-# install library dulu dengan pip install nama library
+#Install library dahulu pip nama library
 import cv2
 import numpy as np
 import requests
@@ -9,16 +9,17 @@ from PIL import Image, ImageTk
 from threading import Thread
 from tensorflow.keras.models import load_model
 
-# ini model yang sudah dilatih
+# 📈 Load model yang sudah dilatih
 model = load_model("Gesture_nn_model (1).h5")
 labels = ["open", "mencengkram", "genggam", "geser_kanan", "geser_kiri", "lepas"]
 
+
 window = tk.Tk()
-window.title("Huawei Air Gesture Transfer (Model)")
+window.title("Gesture Transfer to HP")
 window.geometry("1000x700")
 status_label = tk.Label(
     window,
-    text="✊Genggam = Pilih File, Geser ⬅️➡️, 🖐️ Lepas untuk kirim",
+    text="✊ Genggam = Pilih, Geser ➡️, 🖐️ Lepas untuk kirim",
     font=("Arial", 14),
 )
 status_label.pack(pady=10)
@@ -35,36 +36,69 @@ img_tk = None
 selected_file = None
 selected_preview_image = None
 
-IP_HP = ""  # isi dengan IP Satu Jaringan
+IP_HP = ""  # isi dengan IP HP satu jaringan
 URL_UPLOAD = f"http://{IP_HP}:5000/upload"
+
 
 
 def fade_in_preview(img_pil):
     global image_id, img_tk
     w, h = canvas.winfo_width(), canvas.winfo_height()
     img_pil = img_pil.resize((w, h)).convert("RGBA")
-    img_tk = ImageTk.PhotoImage(img_pil)
-    if image_id is None:
-        image_id = canvas.create_image(w // 2, h // 2, anchor="center", image=img_tk)
-    else:
-        canvas.itemconfig(image_id, image=img_tk)
-    canvas.image = img_tk
+    alpha_values = list(range(0, 256, 20))
+
+    def animate():
+        global image_id, img_tk
+        nonlocal alpha_values
+        if not alpha_values:
+            return
+        alpha = alpha_values.pop(0)
+        img = img_pil.copy()
+        img.putalpha(alpha)
+        img_tk = ImageTk.PhotoImage(img)
+        if image_id is None:
+            image_id = canvas.create_image(
+                w // 2, h // 2, anchor="center", image=img_tk
+            )
+        else:
+            canvas.itemconfig(image_id, image=img_tk)
+        canvas.image = img_tk
+        window.after(30, animate)
+
+    animate()
+
 
 
 def fade_out_and_upload():
-    global selected_file, selected_preview_image
-    if selected_preview_image:
-        fade_in_preview(selected_preview_image)
+    global selected_file, selected_preview_image, image_id, img_tk
+    img_pil = selected_preview_image.resize(
+        (canvas.winfo_width(), canvas.winfo_height())
+    ).convert("RGBA")
+    alpha_values = list(range(255, 0, -20))
 
-    try:
-        with open(selected_file, "rb") as file_data:
-            res = requests.post(URL_UPLOAD, files={"file": file_data})
-            if res.ok:
-                status_label.config(text="✅ File terkirim ke HP!")
-            else:
-                status_label.config(text="⚠️ Gagal kirim ke HP!")
-    except Exception as e:
-        status_label.config(text=f"⚠️ Error: {e}")
+    def animate():
+        nonlocal alpha_values
+        if not alpha_values:
+            try:
+                with open(selected_file, "rb") as file_data:
+                    res = requests.post(URL_UPLOAD, files={"file": file_data})
+                    if res.ok:
+                        status_label.config(text="✅ File terkirim ke HP!")
+                    else:
+                        status_label.config(text="⚠️ Gagal kirim ke HP!")
+            except Exception as e:
+                status_label.config(text=f"⚠️ Error: {e}")
+            return
+        alpha = alpha_values.pop(0)
+        img = img_pil.copy()
+        img.putalpha(alpha)
+        img_tk = ImageTk.PhotoImage(img)
+        canvas.itemconfig(image_id, image=img_tk)
+        canvas.image = img_tk
+        window.after(30, animate)
+
+    animate()
+
 
 
 def camera_loop():
@@ -97,7 +131,6 @@ def camera_loop():
             2,
         )
 
-        # 📂 Jika genggam → pilih file
         if gesture == "genggam" and not drag_mode:
             drag_mode = True
             gesture_time = time.time()
@@ -121,7 +154,6 @@ def camera_loop():
                     selected_preview_image = Image.open(selected_file)
                     fade_in_preview(selected_preview_image)
                 else:
-                    # Untuk file non-image → tampilkan dummy preview
                     selected_preview_image = Image.new("RGB", (640, 480), color="gray")
                     fade_in_preview(selected_preview_image)
                 status_label.config(text="👉 File dipilih, Geser ➡️ atau 🖐️ untuk kirim")
